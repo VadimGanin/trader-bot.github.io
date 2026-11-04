@@ -1,0 +1,519 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="color-scheme" content="light dark">
+<title>Прогноз на 5 минут</title>
+<style>
+:root{--bg:#f6f7f8;--sf:#ffffff;--ln:#e2e5e9;--ink:#14171a;--mut:#69727c;--up:#1d7a4c;--dn:#b23a48;--wn:#8a6a1f;--navh:0px;--r:10px}
+@media(prefers-color-scheme:dark){:root{--bg:#0f1214;--sf:#161a1e;--ln:#262c33;--ink:#e9ebee;--mut:#8b949d;--up:#4fae7b;--dn:#d4636f;--wn:#c9a24a}}
+@media(max-width:919px){:root{--navh:56px}}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html{-webkit-text-size-adjust:100%}
+body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.45 system-ui,-apple-system,"Segoe UI",Roboto,"Helvetica Neue",sans-serif;font-variant-numeric:tabular-nums;padding-bottom:calc(var(--navh) + env(safe-area-inset-bottom))}
+button,input,select{font:inherit;color:inherit}
+button{cursor:pointer}
+:focus-visible{outline:2px solid var(--ink);outline-offset:2px}
+.mut{color:var(--mut)}.up{color:var(--up)}.dn{color:var(--dn)}.wn{color:var(--wn)}
+.small{font-size:13px}
+
+/* шапка */
+.top{display:flex;justify-content:space-between;align-items:center;gap:12px;max-width:1080px;margin:0 auto;padding:max(14px,env(safe-area-inset-top)) 20px 6px}
+.top b{font-size:17px;font-weight:650;letter-spacing:-.01em;display:block}
+.top .st{font-size:12px;color:var(--mut)}
+.top-r{display:flex;align-items:center;gap:6px;text-align:right}
+.cd{font-size:13px;color:var(--mut);white-space:nowrap}
+.cd b{display:inline;font-size:13px;color:var(--ink);font-weight:600}
+.txt{background:none;border:0;padding:10px 8px;min-height:44px;text-decoration:underline;text-underline-offset:3px;text-decoration-color:var(--ln)}
+
+/* навигация */
+.nav{display:grid;grid-template-columns:repeat(3,1fr);position:fixed;left:0;right:0;bottom:0;height:calc(56px + env(safe-area-inset-bottom));padding-bottom:env(safe-area-inset-bottom);background:var(--sf);border-top:1px solid var(--ln);z-index:5}
+.nav button{background:none;border:0;border-top:2px solid transparent;color:var(--mut);font-weight:500}
+.nav button.on{color:var(--ink);font-weight:650;border-top-color:var(--ink)}
+@media(min-width:920px){
+  .nav{position:static;max-width:1080px;margin:0 auto;padding:0 20px;display:flex;gap:28px;height:auto;background:none;border:0;border-bottom:1px solid var(--ln);box-sizing:content-box}
+  .nav button{height:44px;border-top:0;border-bottom:2px solid transparent;padding:0;margin-bottom:-1px}
+  .nav button.on{border-bottom-color:var(--ink)}
+  .navwrap{border-bottom:1px solid var(--ln)}
+  .nav{border-bottom:0}
+}
+
+main{max-width:1080px;margin:0 auto;padding:8px 20px 32px}
+.view{display:none}.view.on{display:block}
+h2,h3{margin:0}
+h3{font-size:15px;font-weight:650;margin:28px 0 6px}
+
+/* раскладка сигналов */
+.split{display:grid;grid-template-columns:340px 1fr;gap:48px;align-items:start}
+@media(max-width:919px){
+  .split{display:block}
+  .detailcol{display:none}
+  body.det .detailcol{display:block}
+  body.det .listcol{display:none}
+}
+@media(min-width:920px){.back{display:none}.listcol{position:sticky;top:12px}}
+
+/* список пар */
+.pr{display:flex;justify-content:space-between;align-items:center;gap:12px;width:100%;min-height:62px;padding:12px 0;background:none;border:0;border-bottom:1px solid var(--ln);text-align:left}
+.pr .l,.pr .r{display:flex;flex-direction:column;gap:2px}
+.pr .r{text-align:right}
+.pr b{font-weight:600;font-size:16px}
+.pr .sig{font-weight:600}
+.pr.sel{box-shadow:inset 2px 0 0 var(--ink);padding-left:12px}
+@media(max-width:919px){.pr.sel{box-shadow:none;padding-left:0}}
+.empty{padding:20px 0}
+.foot{margin:20px 0 0;font-size:13px;color:var(--mut);max-width:46ch}
+
+/* детали пары */
+.back{padding:10px 0;margin:0 0 4px;min-height:44px}
+.dname{display:flex;align-items:baseline;gap:12px;flex-wrap:wrap;font-size:20px;font-weight:650;letter-spacing:-.01em}
+.dname span{font-size:16px;font-weight:400}
+.verdict{font-size:44px;font-weight:650;letter-spacing:-.03em;line-height:1.1;margin:18px 0 6px}
+.vsub{margin:0;color:var(--mut);max-width:44ch}
+.facts{margin:16px 0 0;padding:0}
+.facts>div{display:flex;justify-content:space-between;gap:16px;padding:11px 0;border-bottom:1px solid var(--ln)}
+.facts dt{color:var(--mut)}
+.facts dd{margin:0;font-weight:600;text-align:right}
+.actions{position:sticky;bottom:calc(var(--navh) + env(safe-area-inset-bottom));padding:14px 0 10px;background:linear-gradient(to top,var(--bg) 75%,transparent)}
+.btn{display:block;width:100%;height:50px;border:0;border-radius:var(--r);background:var(--ink);color:var(--bg);font-weight:650}
+.btn:disabled{opacity:.3;cursor:default}
+.note{font-size:13px;color:var(--mut);margin:12px 0 0;max-width:60ch}
+canvas{display:block;width:100%;height:210px;margin-top:8px}
+.lines>div{display:flex;justify-content:space-between;gap:12px;padding:9px 0;border-bottom:1px solid var(--ln)}
+.lines span:last-child{text-align:right}
+.two{display:grid;grid-template-columns:1fr 1fr;gap:0 40px}
+@media(max-width:919px){.two{display:block}}
+
+/* журнал */
+.stats{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin:14px 0 8px}
+.stats b{display:block;font-size:26px;font-weight:650;letter-spacing:-.02em;line-height:1.2}
+.stats span{font-size:13px;color:var(--mut)}
+.jr{display:flex;justify-content:space-between;gap:12px;padding:13px 0;border-bottom:1px solid var(--ln)}
+.jr b{font-weight:600}
+.jr .res{font-weight:600;text-align:right}
+
+/* настройки */
+.field{display:block;margin:0 0 20px;max-width:420px}
+.field>span{display:block;font-size:14px;color:var(--mut);margin-bottom:6px}
+.field input[type=text],.field input[type=password],.field input[type=number],.field select{width:100%;height:48px;padding:0 12px;background:var(--sf);border:1px solid var(--ln);border-radius:8px;font-size:16px}
+.field select{appearance:none;-webkit-appearance:none;background-image:linear-gradient(45deg,transparent 50%,var(--mut) 50%),linear-gradient(135deg,var(--mut) 50%,transparent 50%);background-position:calc(100% - 20px) 21px,calc(100% - 15px) 21px;background-size:5px 5px;background-repeat:no-repeat;padding-right:36px}
+.switch{display:flex;align-items:center;justify-content:space-between;gap:16px;min-height:48px;max-width:420px;margin-bottom:20px;border-top:1px solid var(--ln);border-bottom:1px solid var(--ln)}
+.switch input{width:22px;height:22px;accent-color:var(--ink)}
+.chips{display:flex;flex-wrap:wrap;gap:8px;max-width:520px}
+.chip{min-height:42px;padding:0 14px;border:1px solid var(--ln);background:var(--sf);border-radius:8px}
+.chip[aria-pressed=true]{background:var(--ink);color:var(--bg);border-color:var(--ink);font-weight:600}
+.hint{font-size:13px;color:var(--mut);margin:6px 0 0}
+
+@media(prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
+</style>
+</head>
+<body>
+<header class="top">
+  <div>
+    <b>Прогноз на 5 минут</b>
+    <span class="st" id="status">Загрузка данных</span>
+  </div>
+  <div class="top-r">
+    <span class="cd">до свечи <b id="cd">--</b></span>
+    <button class="txt" id="refresh">Обновить</button>
+  </div>
+</header>
+<div class="navwrap"><nav class="nav" id="nav">
+  <button data-v="signals" class="on">Сигналы</button>
+  <button data-v="journal">Журнал</button>
+  <button data-v="settings">Настройки</button>
+</nav></div>
+
+<main>
+  <section id="v-signals" class="view on">
+    <div class="split">
+      <div class="listcol">
+        <div id="list"></div>
+        <p class="foot">Бинарные опционы при выплате ниже 100% имеют отрицательное ожидание. Сигнал стоит учитывать только вместе с проверкой модели и вашим журналом.</p>
+      </div>
+      <div class="detailcol" id="detail"></div>
+    </div>
+  </section>
+
+  <section id="v-journal" class="view">
+    <div class="stats" id="journalStats"></div>
+    <div id="journal"></div>
+    <p><button class="txt" id="clearJ">Очистить журнал</button></p>
+  </section>
+
+  <section id="v-settings" class="view">
+    <label class="field"><span>Источник данных</span>
+      <select id="provider">
+        <option value="binance">Binance, без ключа (EUR, GBP, AUD, BTC, ETH)</option>
+        <option value="twelve">Twelve Data, нужен ключ (все форекс-пары)</option>
+        <option value="demo">Демо, случайные данные</option>
+      </select>
+    </label>
+    <label class="field" id="keyWrap"><span>Ключ Twelve Data</span><input id="apikey" type="password" autocomplete="off" placeholder="Вставьте ключ"></label>
+    <label class="field"><span>Выплата брокера, %</span><input id="payout" type="number" inputmode="decimal" min="50" max="100" value="85"></label>
+    <label class="field"><span>Минимальная ожидаемая доходность для сигнала, %</span><input id="minev" type="number" inputmode="decimal" min="0" max="20" step="0.5" value="2"></label>
+    <label class="switch"><span>Обновлять каждую минуту</span><input id="auto" type="checkbox" checked></label>
+    <div class="field" style="max-width:none"><span>Пары в анализе</span><div class="chips" id="pairsSel"></div>
+      <p class="hint" id="pairsHint"></p></div>
+  </section>
+</main>
+
+<script>
+/* ===================== Конфиг ===================== */
+const PAIRS=[
+ {id:'EURUSD',name:'EUR/USD',td:'EUR/USD',bn:'EURUSDT',base:1.085},
+ {id:'GBPUSD',name:'GBP/USD',td:'GBP/USD',bn:'GBPUSDT',base:1.27},
+ {id:'USDJPY',name:'USD/JPY',td:'USD/JPY',base:150},
+ {id:'AUDUSD',name:'AUD/USD',td:'AUD/USD',bn:'AUDUSDT',base:0.66},
+ {id:'USDCAD',name:'USD/CAD',td:'USD/CAD',base:1.37},
+ {id:'USDCHF',name:'USD/CHF',td:'USD/CHF',base:0.88},
+ {id:'NZDUSD',name:'NZD/USD',td:'NZD/USD',base:0.6},
+ {id:'EURGBP',name:'EUR/GBP',td:'EUR/GBP',base:0.85},
+ {id:'EURJPY',name:'EUR/JPY',td:'EUR/JPY',base:163},
+ {id:'GBPJPY',name:'GBP/JPY',td:'GBP/JPY',base:190},
+ {id:'BTCUSD',name:'BTC/USD',td:'BTC/USD',bn:'BTCUSDT',base:68000},
+ {id:'ETHUSD',name:'ETH/USD',td:'ETH/USD',bn:'ETHUSDT',base:3400},
+];
+const HORIZON=5, WARM=60, MIN_TEST=60;
+const FEATURE_NAMES=['RSI(14)','Stoch(14,3)','Bollinger %B','EMA9−EMA21','EMA21−EMA50','MACD-гист.','Импульс 3','Импульс 10','Тело свечи','Посл. изменение'];
+
+/* ===================== Математика ===================== */
+const clip=(x,a,b)=>Math.max(a,Math.min(b,x));
+function ema(a,p){const k=2/(p+1),o=new Array(a.length);o[0]=a[0];for(let i=1;i<a.length;i++)o[i]=a[i]*k+o[i-1]*(1-k);return o}
+function rsiArr(c,p=14){const o=new Array(c.length).fill(50);if(c.length<=p)return o;let g=0,l=0;for(let i=1;i<=p;i++){const d=c[i]-c[i-1];d>=0?g+=d:l-=d}g/=p;l/=p;o[p]=l===0?100:100-100/(1+g/l);for(let i=p+1;i<c.length;i++){const d=c[i]-c[i-1];g=(g*(p-1)+Math.max(d,0))/p;l=(l*(p-1)+Math.max(-d,0))/p;o[i]=l===0?100:100-100/(1+g/l)}return o}
+function atrArr(C,p=14){const o=new Array(C.length).fill(0);let s=0;for(let i=0;i<C.length;i++){const tr=i===0?C[i].h-C[i].l:Math.max(C[i].h-C[i].l,Math.abs(C[i].h-C[i-1].c),Math.abs(C[i].l-C[i-1].c));if(i<p){s+=tr;o[i]=s/(i+1)}else o[i]=(o[i-1]*(p-1)+tr)/p}return o}
+function stochArr(C,p=14){const k=C.map((_,i)=>{let hh=-Infinity,ll=Infinity;for(let j=Math.max(0,i-p+1);j<=i;j++){hh=Math.max(hh,C[j].h);ll=Math.min(ll,C[j].l)}return hh===ll?50:(C[i].c-ll)/(hh-ll)*100});return k.map((_,i)=>{let s=0,c=0;for(let j=Math.max(0,i-2);j<=i;j++){s+=k[j];c++}return s/c})}
+function bollArr(cl,p=20){const mid=[],sd=[];for(let i=0;i<cl.length;i++){const s=Math.max(0,i-p+1);let m=0,n=i-s+1;for(let j=s;j<=i;j++)m+=cl[j];m/=n;let v=0;for(let j=s;j<=i;j++)v+=(cl[j]-m)**2;mid.push(m);sd.push(Math.sqrt(v/n))}return{mid,sd}}
+
+function computeIndicators(C){
+  const cl=C.map(x=>x.c);
+  const e9=ema(cl,9),e21=ema(cl,21),e50=ema(cl,50),e12=ema(cl,12),e26=ema(cl,26);
+  const macd=e12.map((v,i)=>v-e26[i]),sig=ema(macd,9);
+  return{cl,e9,e21,e50,macd,sig,rsi:rsiArr(cl),atr:atrArr(C),stoch:stochArr(C),bb:bollArr(cl)};
+}
+function featureAt(C,I,i){
+  const a=(I.atr[i]||0)+1e-12,c=C[i];
+  return[
+    (I.rsi[i]-50)/50,
+    (I.stoch[i]-50)/50,
+    clip((c.c-I.bb.mid[i])/(2*I.bb.sd[i]+1e-12),-1.5,1.5),
+    clip((I.e9[i]-I.e21[i])/a,-3,3),
+    clip((I.e21[i]-I.e50[i])/a,-5,5),
+    clip((I.macd[i]-I.sig[i])/a,-2,2),
+    clip((c.c-C[i-3].c)/a,-4,4),
+    clip((c.c-C[i-10].c)/a,-6,6),
+    (c.c-c.o)/(c.h-c.l+1e-12),
+    clip((c.c-C[i-1].c)/a,-3,3)
+  ];
+}
+
+/* Логистическая регрессия */
+const sigm=z=>1/(1+Math.exp(-z));
+function fitLogit(X,y,iters=400,lr=0.3,lam=0.05){
+  const m=X.length,d=X[0].length,mu=new Array(d).fill(0),sd=new Array(d).fill(0);
+  for(const r of X)for(let j=0;j<d;j++)mu[j]+=r[j]/m;
+  for(const r of X)for(let j=0;j<d;j++)sd[j]+=(r[j]-mu[j])**2/m;
+  for(let j=0;j<d;j++)sd[j]=Math.sqrt(sd[j])||1;
+  const Z=X.map(r=>r.map((v,j)=>(v-mu[j])/sd[j]));
+  let w=new Array(d).fill(0),b=0;
+  for(let t=0;t<iters;t++){
+    const g=new Array(d).fill(0);let gb=0;
+    for(let i=0;i<m;i++){let z=b;for(let j=0;j<d;j++)z+=w[j]*Z[i][j];const e=sigm(z)-y[i];gb+=e/m;for(let j=0;j<d;j++)g[j]+=e*Z[i][j]/m}
+    for(let j=0;j<d;j++)w[j]-=lr*(g[j]+lam*w[j]);b-=lr*gb;
+  }
+  return{w,b,mu,sd,predict(x){let z=b;for(let j=0;j<d;j++)z+=w[j]*(x[j]-mu[j])/sd[j];return sigm(z)}};
+}
+
+/* Главный анализ пары */
+function analyze(C,payout){
+  const n=C.length;
+  if(n<WARM+HORIZON+MIN_TEST+40)return{error:'мало свечей ('+n+')'};
+  const I=computeIndicators(C);
+  const S=[]; // выборки: вход по open следующей свечи, экспирация = close через 5 свечей
+  for(let i=WARM;i<=n-HORIZON-2;i++){
+    const entry=C[i+1].o,exitp=C[i+HORIZON].c;
+    if(exitp===entry)continue;
+    S.push({i,x:featureAt(C,I,i),y:exitp>entry?1:0});
+  }
+  const split=Math.floor(S.length*0.65);
+  const train=S.slice(0,split),test=S.slice(split+HORIZON);
+  let acc=0.5,nT=test.length,confAcc=null,confN=0;
+  if(train.length>50&&nT>=MIN_TEST){
+    const m=fitLogit(train.map(s=>s.x),train.map(s=>s.y));
+    let ok=0,cOk=0;
+    for(const s of test){const p=m.predict(s.x);if((p>=0.5?1:0)===s.y)ok++;if(Math.abs(p-0.5)>0.04){confN++;if((p>=0.5?1:0)===s.y)cOk++}}
+    acc=ok/nT;if(confN>=15)confAcc=cOk/confN;
+  }
+  const full=fitLogit(S.map(s=>s.x),S.map(s=>s.y));
+  const xNow=featureAt(C,I,n-1);
+  const pRaw=full.predict(xNow);
+  const nEff=Math.max(nT/HORIZON,1),seEff=Math.sqrt(0.25/nEff);   // метки перекрываются → эффективная выборка в 5 раз меньше
+  const lower=acc-1.28*seEff;                                     // нижняя граница (90%)
+  const k=clip((lower-0.5)/0.05,0,1);                             // доверие к модели только если нижняя граница > 50%
+  const pUp=0.5+(pRaw-0.5)*k;
+  const dir=pUp>=0.5?'up':'dn',pWin=dir==='up'?pUp:1-pUp;
+  const po=payout/100,be=1/(1+po),ev=pWin*po-(1-pWin);
+  // голосование индикаторов
+  const i=n-1,votes=[];
+  const V=(name,val,sig,txt)=>votes.push({name,val,sig,txt});
+  V('RSI(14)',I.rsi[i].toFixed(1),I.rsi[i]<30?1:I.rsi[i]>70?-1:0,I.rsi[i]<30?'перепродан':I.rsi[i]>70?'перекуплен':'нейтрально');
+  V('Stoch',I.stoch[i].toFixed(1),I.stoch[i]<20?1:I.stoch[i]>80?-1:0,I.stoch[i]<20?'перепродан':I.stoch[i]>80?'перекуплен':'нейтрально');
+  const pb=(C[i].c-I.bb.mid[i])/(2*I.bb.sd[i]+1e-12);
+  V('Bollinger %B',pb.toFixed(2),pb<-0.95?1:pb>0.95?-1:0,pb<-0.95?'у нижней границы':pb>0.95?'у верхней границы':'внутри канала');
+  V('EMA9/EMA21',(I.e9[i]-I.e21[i]).toPrecision(2),I.e9[i]>I.e21[i]?1:-1,I.e9[i]>I.e21[i]?'тренд вверх':'тренд вниз');
+  V('EMA21/EMA50',(I.e21[i]-I.e50[i]).toPrecision(2),I.e21[i]>I.e50[i]?1:-1,I.e21[i]>I.e50[i]?'старший тренд вверх':'старший тренд вниз');
+  V('MACD-гист.',(I.macd[i]-I.sig[i]).toPrecision(2),I.macd[i]>I.sig[i]?1:-1,I.macd[i]>I.sig[i]?'бычий':'медвежий');
+  const upV=votes.filter(v=>v.sig>0).length,dnV=votes.filter(v=>v.sig<0).length;
+  // волатильность: перцентиль ATR/цена
+  const rel=I.atr.map((a,j)=>a/C[j].c).slice(WARM),cur=rel[rel.length-1];
+  const volPct=rel.filter(v=>v<=cur).length/rel.length;
+  // вклад признаков в текущий прогноз
+  const contrib=FEATURE_NAMES.map((nm,j)=>({name:nm,c:full.w[j]*(xNow[j]-full.mu[j])/full.sd[j]}));
+  return{pRaw,pUp,k,dir,pWin,ev,be,acc,nT,se:seEff,lower,confAcc,confN,votes,upV,dnV,volPct,contrib,
+    price:C[n-1].c,lastT:C[n-1].t,nTrain:S.length,I};
+}
+
+/* ===================== Данные ===================== */
+function mulberry(a){return function(){a|=0;a=a+0x6D2B79F5|0;let t=Math.imul(a^a>>>15,1|a);t=t+Math.imul(t^t>>>7,61|t)^t;return((t^t>>>14)>>>0)/4294967296}}
+function gauss(r){let u=0,v=0;while(!u)u=r();while(!v)v=r();return Math.sqrt(-2*Math.log(u))*Math.cos(2*Math.PI*v)}
+function hashStr(s){let h=2166136261;for(const ch of s){h^=ch.charCodeAt(0);h=Math.imul(h,16777619)}return h>>>0}
+function demoCandles(pair,now=Date.now(),count=1000){
+  const origin=Math.floor(Date.UTC(2026,9,1)/60000),nowMin=Math.floor(now/60000);
+  const r=mulberry(hashStr(pair.id));let p=pair.base,prev=0,reg=0;const out=[];
+  const baseVol=pair.base>1000?0.0004:0.00012;
+  for(let idx=origin;idx<nowMin;idx++){
+    reg=0.97*reg+0.25*gauss(r);
+    const vol=baseVol*Math.exp(0.5*reg);
+    const ret=0.02*prev+vol*gauss(r);prev=ret;
+    const o=p,c=o*(1+ret);
+    if(idx>=nowMin-count){
+      const h=Math.max(o,c)*(1+Math.abs(gauss(r))*vol*0.4),l=Math.min(o,c)*(1-Math.abs(gauss(r))*vol*0.4);
+      out.push({t:idx*60000,o,h,l,c,v:0});
+    }else{gauss(r);gauss(r)}
+    p=c;
+  }
+  return out;
+}
+async function fetchJson(url){const r=await fetch(url);if(!r.ok)throw new Error('HTTP '+r.status);return r.json()}
+async function loadCandles(pair,provider,key){
+  let C;
+  if(provider==='demo')C=demoCandles(pair);
+  else if(provider==='binance'){
+    if(!pair.bn)throw new Error('нет на Binance');
+    let d;
+    try{d=await fetchJson(`https://api.binance.com/api/v3/klines?symbol=${pair.bn}&interval=1m&limit=1000`)}
+    catch(e){d=await fetchJson(`https://data-api.binance.vision/api/v3/klines?symbol=${pair.bn}&interval=1m&limit=1000`)}
+    C=d.map(k=>({t:k[0],o:+k[1],h:+k[2],l:+k[3],c:+k[4],v:+k[5]}));
+  }else{
+    if(!key)throw new Error('введите API-ключ');
+    const j=await fetchJson(`https://api.twelvedata.com/time_series?symbol=${encodeURIComponent(pair.td)}&interval=1min&outputsize=1500&order=ASC&timezone=UTC&apikey=${encodeURIComponent(key)}`);
+    if(j.status==='error'||!j.values)throw new Error(j.message||'ошибка API');
+    C=j.values.map(v=>({t:Date.parse(v.datetime.replace(' ','T')+'Z'),o:+v.open,h:+v.high,l:+v.low,c:+v.close,v:+(v.volume||0)}));
+  }
+  C.sort((a,b)=>a.t-b.t);
+  const now=Date.now();
+  while(C.length&&C[C.length-1].t+60000>now)C.pop(); // только закрытые свечи
+  return C;
+}
+
+/* ===================== Состояние ===================== */
+const LS=(k,d)=>{try{const v=localStorage.getItem(k);return v?JSON.parse(v):d}catch(e){return d}};
+const SV=(k,v)=>{try{localStorage.setItem(k,JSON.stringify(v))}catch(e){}};
+let settings=Object.assign({provider:'binance',key:'',payout:85,minEV:2,auto:true,selected:['EURUSD','GBPUSD','AUDUSD','BTCUSD','ETHUSD']},LS('bo_settings',{}));
+let state={},selectedId=null,refreshing=false,journal=LS('bo_journal',[]),view='signals';
+const $=id=>document.getElementById(id);
+const saveSettings=()=>SV('bo_settings',settings);
+
+/* форматирование */
+const ru=s=>String(s).replace('.',',');
+const fmtP=v=>ru(v>=1000?v.toFixed(2):v>=10?v.toFixed(3):v.toFixed(5));
+const pct=(v,d=1)=>ru((v*100).toFixed(d))+'%';
+const signed=(v,d=1)=>(v<0?'−':'+')+ru(Math.abs(v).toFixed(d));
+const tm=t=>new Date(t).toLocaleTimeString('ru-RU',{hour:'2-digit',minute:'2-digit'});
+const availablePairs=()=>PAIRS.filter(p=>settings.provider==='demo'||(settings.provider==='binance'?p.bn:p.td));
+const activeIds=()=>settings.selected.filter(id=>availablePairs().some(p=>p.id===id));
+
+function signalOf(a){
+  if(!a||a.error)return{txt:'—',cls:'mut',trade:false};
+  const trade=a.ev>settings.minEV/100&&a.k>0;
+  return{txt:trade?(a.dir==='up'?'Вверх':'Вниз'):'Пропуск',cls:trade?(a.dir==='up'?'up':'dn'):'mut',trade};
+}
+
+/* ===================== Список ===================== */
+function renderList(){
+  const ids=activeIds();
+  const rows=ids.map(id=>({p:PAIRS.find(x=>x.id===id),s:state[id]||{}}));
+  rows.sort((a,b)=>((b.s.a&&!b.s.a.error?b.s.a.ev:-9)-(a.s.a&&!a.s.a.error?a.s.a.ev:-9)));
+  $('list').innerHTML=rows.map(({p,s})=>{
+    const sel=p.id===selectedId?' sel':'';
+    if(s.err)return`<button class="pr${sel}" data-id="${p.id}"><span class="l"><b>${p.name}</b><span class="small dn">${s.err}</span></span><span class="r mut">Ошибка</span></button>`;
+    if(!s.a)return`<button class="pr${sel}" data-id="${p.id}"><span class="l"><b>${p.name}</b></span><span class="r mut">Загрузка</span></button>`;
+    if(s.a.error)return`<button class="pr${sel}" data-id="${p.id}"><span class="l"><b>${p.name}</b><span class="small dn">${s.a.error}</span></span><span class="r mut">—</span></button>`;
+    const sg=signalOf(s.a);
+    return`<button class="pr${sel}" data-id="${p.id}">
+      <span class="l"><b>${p.name}</b><span class="small mut">${fmtP(s.a.price)}</span></span>
+      <span class="r"><span class="sig ${sg.cls}">${sg.txt}</span><span class="small mut">${pct(s.a.pUp)}, EV ${signed(s.a.ev*100)}%</span></span></button>`;
+  }).join('')||'<div class="empty mut">Пары не выбраны. Добавьте их в настройках.</div>';
+  $('list').querySelectorAll('.pr').forEach(el=>el.onclick=()=>{
+    selectedId=el.dataset.id;document.body.classList.add('det');renderList();renderDetail();window.scrollTo(0,0);
+  });
+  if((!selectedId||!ids.includes(selectedId))&&rows.length){selectedId=rows[0].p.id;renderDetail()}
+}
+
+/* ===================== Детали ===================== */
+function renderDetail(){
+  const p=PAIRS.find(x=>x.id===selectedId),s=state[selectedId];
+  const back='<button class="txt back" id="back">Все пары</button>';
+  if(!p||!s||!s.a||s.a.error){$('detail').innerHTML=back+'<p class="mut">'+((s&&s.err)||(s&&s.a&&s.a.error)||'Данные ещё загружаются.')+'</p>';bindBack();return}
+  const a=s.a,sg=signalOf(a);
+  let verdict,sub;
+  if(sg.trade){verdict=a.dir==='up'?'Вверх':'Вниз';sub=(a.dir==='up'?'CALL':'PUT')+', экспирация 5 минут. Откройте сделку в начале следующей минуты.'}
+  else{verdict='Не входить';sub=a.k===0?'На проверочных данных модель не показала точность выше случайной.':'Ожидаемая доходность ниже вашего порога в '+ru(settings.minEV)+'%.'}
+  const volTxt=a.volPct<0.2?'низкая, рынок вялый':a.volPct>0.8?'повышенная':'обычная';
+  $('detail').innerHTML=`
+   ${back}
+   <h2 class="dname">${p.name}<span class="mut">${fmtP(a.price)}</span></h2>
+   <div class="small mut">Последняя закрытая свеча: ${tm(a.lastT)}</div>
+   <div class="verdict ${sg.cls}">${verdict}</div>
+   <p class="vsub">${sub}</p>
+   <dl class="facts">
+     <div><dt>Вероятность выигрыша</dt><dd>${pct(a.pWin)}</dd></div>
+     <div><dt>Нужно для безубыточности</dt><dd>${pct(a.be)}</dd></div>
+     <div><dt>Ожидаемая доходность</dt><dd class="${a.ev>0?'up':'dn'}">${signed(a.ev*100)}%</dd></div>
+     <div><dt>Вверх или вниз</dt><dd>${pct(a.pUp)} / ${pct(1-a.pUp)}</dd></div>
+   </dl>
+   <div class="actions"><button class="btn" id="logBtn" ${sg.trade?'':'disabled'}>Записать в журнал</button></div>
+
+   <h3>Проверка модели</h3>
+   <dl class="facts" style="margin-top:0">
+     <div><dt>Точность на новых данных</dt><dd class="${a.lower>a.be?'up':a.lower>0.5?'wn':''}">${pct(a.acc)}</dd></div>
+     <div><dt>Нижняя граница точности</dt><dd>${pct(a.lower)}</dd></div>
+     <div><dt>Доверие к модели</dt><dd>${pct(a.k,0)}</dd></div>
+     <div><dt>Вероятность вверх без поправки</dt><dd>${pct(a.pRaw)}</dd></div>
+     <div><dt>Точность уверенных сигналов</dt><dd>${a.confAcc===null?'мало данных':pct(a.confAcc)+' ('+a.confN+')'}</dd></div>
+     <div><dt>Волатильность</dt><dd>${volTxt}</dd></div>
+   </dl>
+   <p class="note">Модель обучается на первых 65% истории и проверяется на остальных 35%. Соседние сделки пересекаются по времени, поэтому погрешность считается по выборке в пять раз меньше. Доверие появляется только когда нижняя граница точности выше 50%. Иначе вероятность равна 50% и сигнала нет.</p>
+
+   <h3>График, 60 свечей</h3>
+   <canvas id="cv" role="img" aria-label="График последних 60 минутных свечей"></canvas>
+   <p class="note" style="margin-top:6px">Сплошная линия — EMA 9, пунктир — EMA 21.</p>
+
+   <div class="two">
+    <div><h3>Индикаторы: ${a.upV} вверх, ${a.dnV} вниз</h3>
+     <div class="lines">${a.votes.map(v=>`<div><span>${v.name} <span class="mut">${v.val}</span></span><span class="${v.sig>0?'up':v.sig<0?'dn':'mut'}">${v.txt}</span></div>`).join('')}</div></div>
+    <div><h3>Что повлияло на прогноз модели</h3>
+     <div class="lines">${a.contrib.map(c=>`<div><span>${c.name}</span><span class="${c.c>0?'up':'dn'}">${signed(c.c,2)}</span></div>`).join('')}</div></div>
+   </div>`;
+  bindBack();
+  drawChart(s.candles,a.I);
+  const lb=$('logBtn');
+  if(lb)lb.onclick=()=>{logSignal(p,a);lb.textContent='Записано';lb.disabled=true;setTimeout(()=>{if(selectedId===p.id)renderDetail()},2500)};
+}
+function bindBack(){const b=$('back');if(b)b.onclick=()=>{document.body.classList.remove('det');window.scrollTo(0,0)}}
+
+function drawChart(C,I){
+  const cv=$('cv');if(!cv)return;
+  const w=cv.clientWidth,h=cv.clientHeight;if(!w||!h)return;
+  const dpr=window.devicePixelRatio||1;cv.width=Math.round(w*dpr);cv.height=Math.round(h*dpr);
+  const ctx=cv.getContext&&cv.getContext('2d');if(!ctx)return;
+  ctx.setTransform(dpr,0,0,dpr,0,0);ctx.clearRect(0,0,w,h);
+  const cs=getComputedStyle(document.documentElement),col=n=>cs.getPropertyValue(n).trim();
+  const UP=col('--up'),DN=col('--dn'),INK=col('--ink'),MUT=col('--mut'),LN=col('--ln');
+  const N=60,off=C.length-N,S=C.slice(off);
+  let hi=-Infinity,lo=Infinity;S.forEach(c=>{hi=Math.max(hi,c.h);lo=Math.min(lo,c.l)});const pad=(hi-lo)*0.08||1e-9;hi+=pad;lo-=pad;
+  const X=i=>(i+0.5)*w/N,Y=v=>h-(v-lo)/(hi-lo)*h,bw=Math.max(2,w/N*0.55);
+  ctx.strokeStyle=LN;ctx.lineWidth=1;for(let g=1;g<4;g++){const y=Math.round(h*g/4)+.5;ctx.beginPath();ctx.moveTo(0,y);ctx.lineTo(w,y);ctx.stroke()}
+  S.forEach((c,i)=>{const up=c.c>=c.o;ctx.strokeStyle=ctx.fillStyle=up?UP:DN;ctx.beginPath();ctx.moveTo(X(i),Y(c.h));ctx.lineTo(X(i),Y(c.l));ctx.stroke();ctx.fillRect(X(i)-bw/2,Y(Math.max(c.o,c.c)),bw,Math.max(1,Math.abs(Y(c.o)-Y(c.c))))});
+  [[I.e9,INK,[]],[I.e21,MUT,[5,4]]].forEach(([arr,c,dash])=>{ctx.strokeStyle=c;ctx.lineWidth=1.5;ctx.setLineDash(dash);ctx.beginPath();S.forEach((_,i)=>{const v=arr[off+i];i?ctx.lineTo(X(i),Y(v)):ctx.moveTo(X(i),Y(v))});ctx.stroke();ctx.setLineDash([])});
+}
+
+/* ===================== Журнал ===================== */
+function logSignal(p,a){
+  journal.unshift({id:Date.now(),pair:p.id,name:p.name,dir:a.dir,pWin:a.pWin,entryT:a.lastT+60000,price:a.price,res:null,payout:settings.payout});
+  journal=journal.slice(0,300);SV('bo_journal',journal);renderJournal();
+}
+function resolveJournal(){
+  let ch=false;
+  for(const j of journal){
+    if(j.res)continue;const s=state[j.pair];if(!s||!s.candles)continue;
+    const expC=Math.floor((j.entryT+HORIZON*60000)/60000)*60000-60000; // свеча, закрывающаяся в момент экспирации
+    const c=s.candles.find(x=>x.t===expC);if(!c)continue;
+    j.exit=c.c;j.res=c.c===j.price?'draw':((c.c>j.price)===(j.dir==='up')?'win':'loss');ch=true;
+  }
+  if(ch)SV('bo_journal',journal);
+}
+function renderJournal(){
+  resolveJournal();
+  const done=journal.filter(j=>j.res&&j.res!=='draw'),w=done.filter(j=>j.res==='win').length;
+  const be=1/(1+settings.payout/100);
+  const net=journal.reduce((s,j)=>s+(j.res==='win'?j.payout/100:j.res==='loss'?-1:0),0);
+  $('journalStats').innerHTML=`
+   <div><b>${done.length}</b><span>закрыто сделок</span></div>
+   <div><b class="${done.length?(w/done.length>be?'up':'dn'):''}">${done.length?pct(w/done.length,0):'—'}</b><span>выигрышей, нужно ${pct(be,0)}</span></div>
+   <div><b class="${net>0?'up':net<0?'dn':''}">${signed(net,2)}</b><span>итог в ставках</span></div>`;
+  $('journal').innerHTML=journal.slice(0,50).map(j=>`<div class="jr"><div><b>${j.name}</b> <span class="${j.dir==='up'?'up':'dn'}">${j.dir==='up'?'вверх':'вниз'}</span><div class="small mut">${tm(j.entryT)}, вход ${fmtP(j.price)}, вероятность ${pct(j.pWin)}</div></div><span class="res ${j.res==='win'?'up':j.res==='loss'?'dn':'mut'}">${j.res==='win'?'Выигрыш':j.res==='loss'?'Проигрыш':j.res==='draw'?'Ничья':'Ждём итог'}</span></div>`).join('')||'<div class="empty mut">Записей пока нет. Нажимайте «Записать в журнал» на экране пары. Через 5 минут результат появится здесь, и вы увидите реальную точность.</div>';
+}
+
+/* ===================== Настройки ===================== */
+function renderPairSel(){
+  const av=availablePairs();
+  $('pairsSel').innerHTML=av.map(p=>`<button class="chip" type="button" data-id="${p.id}" aria-pressed="${settings.selected.includes(p.id)}">${p.name}</button>`).join('');
+  $('pairsHint').textContent=settings.provider==='twelve'?'Бесплатный тариф Twelve Data ограничен 8 запросами в минуту, поэтому лучше выбирать до 4 пар.':'';
+  $('pairsSel').querySelectorAll('.chip').forEach(el=>el.onclick=()=>{
+    const id=el.dataset.id,on=!settings.selected.includes(id);
+    settings.selected=on?[...settings.selected,id]:settings.selected.filter(x=>x!==id);
+    el.setAttribute('aria-pressed',on);saveSettings();renderList();debounceRefresh();
+  });
+}
+let dbT;const debounceRefresh=()=>{clearTimeout(dbT);dbT=setTimeout(refreshAll,900)};
+
+function setView(v){
+  view=v;
+  document.querySelectorAll('.view').forEach(el=>el.classList.toggle('on',el.id==='v-'+v));
+  document.querySelectorAll('#nav button').forEach(b=>b.classList.toggle('on',b.dataset.v===v));
+  window.scrollTo(0,0);
+  if(v==='signals')renderDetail();
+}
+
+/* ===================== Обновление ===================== */
+const sleep=ms=>new Promise(r=>setTimeout(r,ms));
+async function refreshAll(){
+  if(refreshing)return;refreshing=true;$('status').textContent='Обновление данных';
+  const ids=activeIds();
+  const delay=settings.provider==='twelve'?7800:settings.provider==='binance'?120:0;
+  for(let n=0;n<ids.length;n++){
+    const p=PAIRS.find(x=>x.id===ids[n]);
+    try{
+      const C=await loadCandles(p,settings.provider,settings.key);
+      state[p.id]={candles:C,a:analyze(C,settings.payout),err:null};
+    }catch(e){state[p.id]={err:String(e.message||e)}}
+    renderList();if(p.id===selectedId)renderDetail();
+    if(delay&&n<ids.length-1)await sleep(delay);
+  }
+  renderJournal();refreshing=false;
+  $('status').textContent=(settings.provider==='demo'?'Демо-данные. ':'')+'Обновлено в '+new Date().toLocaleTimeString('ru-RU');
+}
+function tick(){
+  const s=new Date().getSeconds();$('cd').textContent=(60-s)+' с';
+  if(s===3&&settings.auto&&!refreshing)refreshAll();
+}
+function init(){
+  $('provider').value=settings.provider;$('apikey').value=settings.key;$('payout').value=settings.payout;$('minev').value=settings.minEV;$('auto').checked=settings.auto;
+  const upd=()=>{$('keyWrap').style.display=settings.provider==='twelve'?'':'none'};upd();
+  $('provider').onchange=e=>{settings.provider=e.target.value;const av=availablePairs().map(p=>p.id);settings.selected=settings.selected.filter(id=>av.includes(id));if(!settings.selected.length)settings.selected=av.slice(0,settings.provider==='twelve'?4:5);state={};selectedId=null;saveSettings();upd();renderPairSel();renderList();refreshAll()};
+  $('apikey').onchange=e=>{settings.key=e.target.value.trim();saveSettings();refreshAll()};
+  $('payout').onchange=e=>{settings.payout=clip(+e.target.value||85,50,100);e.target.value=settings.payout;saveSettings();refreshAll()};
+  $('minev').onchange=e=>{settings.minEV=clip(+e.target.value||0,0,20);e.target.value=settings.minEV;saveSettings();renderList();renderDetail()};
+  $('auto').onchange=e=>{settings.auto=e.target.checked;saveSettings()};
+  $('refresh').onclick=refreshAll;
+  $('clearJ').onclick=()=>{if(confirm('Очистить журнал?')){journal=[];SV('bo_journal',journal);renderJournal()}};
+  document.querySelectorAll('#nav button').forEach(b=>b.onclick=()=>setView(b.dataset.v));
+  window.addEventListener('resize',()=>{const s=state[selectedId];if(s&&s.a&&!s.a.error)drawChart(s.candles,s.a.I)});
+  renderPairSel();renderList();renderJournal();refreshAll();setInterval(tick,1000);tick();
+}
+if(typeof document!=='undefined'&&document.getElementById('provider'))init();
+</script>
+</body>
+</html>
